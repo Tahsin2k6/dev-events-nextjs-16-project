@@ -16,8 +16,8 @@ export interface EventDocument extends Document {
   image: string;
   venue: string;
   location: string;
-  date: string;     // ISO date string: YYYY-MM-DD
-  time: string;     // normalized to HH:mm (24-hour)
+  date: string; // ISO date string: YYYY-MM-DD
+  time: string; // normalized to HH:mm (24-hour)
   mode: EventMode;
   audience: string;
   agenda: string[];
@@ -76,12 +76,12 @@ const EventSchema = new Schema<EventDocument>(
     // Auto-generated from title in hooks; collisions are handled with a numeric suffix
     slug: { type: String, required: true, unique: true },
     description: { type: String, required: true, trim: true, validate: nonEmptyString },
-    overview:    { type: String, required: true, trim: true, validate: nonEmptyString },
-    image:       { type: String, required: true, trim: true, validate: nonEmptyString },
-    venue:       { type: String, required: true, trim: true, validate: nonEmptyString },
-    location:    { type: String, required: true, trim: true, validate: nonEmptyString },
-    date:        { type: String, required: true, trim: true, validate: nonEmptyString },
-    time:        { type: String, required: true, trim: true, validate: nonEmptyString },
+    overview: { type: String, required: true, trim: true, validate: nonEmptyString },
+    image: { type: String, required: true, trim: true, validate: nonEmptyString },
+    venue: { type: String, required: true, trim: true, validate: nonEmptyString },
+    location: { type: String, required: true, trim: true, validate: nonEmptyString },
+    date: { type: String, required: true, trim: true, validate: nonEmptyString },
+    time: { type: String, required: true, trim: true, validate: nonEmptyString },
     mode: {
       type: String,
       required: true,
@@ -90,7 +90,7 @@ const EventSchema = new Schema<EventDocument>(
         message: `Mode must be one of: ${EVENT_MODES.join(", ")}`,
       },
     },
-    audience:  { type: String, required: true, trim: true, validate: nonEmptyString },
+    audience: { type: String, required: true, trim: true, validate: nonEmptyString },
     agenda: {
       type: [String],
       required: true,
@@ -122,6 +122,11 @@ const EventSchema = new Schema<EventDocument>(
 // Index on date for efficiently querying upcoming/past events without a full collection scan
 EventSchema.index({ date: 1 });
 
+type UpdateDoc = {
+  [key: string]: unknown;
+  $set?: Record<string, unknown>;
+};
+
 /**
  * Pre-save hook:
  * - Generates/regenerates slug from title with collision handling (appends -1, -2, etc.)
@@ -132,6 +137,7 @@ EventSchema.pre<EventDocument>("save", async function () {
     const base = slugify(this.title);
     let slug = base;
     let i = 1;
+
     // Increment suffix until we find a slug not used by any other document
     while (await EventModel.exists({ slug, _id: { $ne: this._id } })) {
       slug = `${base}-${i++}`;
@@ -150,15 +156,23 @@ EventSchema.pre<EventDocument>("save", async function () {
  * Handles both direct updates ({ title: ... }) and operator form ({ $set: { title: ... } }).
  */
 EventSchema.pre("findOneAndUpdate", async function () {
-  const update = this.getUpdate() as Record<string, any> | null;
+  const update = this.getUpdate() as UpdateDoc | null;
   if (!update) return;
 
   // Read a field from whichever update form was used
-  const getField = (key: string): string | undefined => update[key] ?? update.$set?.[key];
+  const getField = (key: string): string | undefined => {
+    const direct = update[key];
+    if (typeof direct === "string") return direct;
+
+    const nested = update.$set?.[key];
+    if (typeof nested === "string") return nested;
+
+    return undefined;
+  };
 
   // Write a field back to wherever it came from
   const setField = (key: string, value: string): void => {
-    if (key in update) {
+    if (Object.prototype.hasOwnProperty.call(update, key)) {
       update[key] = value;
     } else {
       update.$set ??= {};
@@ -172,6 +186,7 @@ EventSchema.pre("findOneAndUpdate", async function () {
     let slug = base;
     let i = 1;
     const docId = this.getQuery()._id;
+
     while (await EventModel.exists({ slug, _id: { $ne: docId } })) {
       slug = `${base}-${i++}`;
     }
