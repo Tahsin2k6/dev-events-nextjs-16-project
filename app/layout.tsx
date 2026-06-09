@@ -4,6 +4,9 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import LightRays from '@/components/LightRays';
 import Navbar from "@/components/Navbar";
+import { PHProvider } from "./providers";
+import { Suspense } from "react";
+import PostHogPageView from "./PostHogPageView";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -32,32 +35,37 @@ export default function RootLayout({
       lang="en"
       className={cn("h-full", "antialiased", SchibstedGrotesk.variable, MartianMono.variable, "font-sans", geist.variable)}
     >
-      <body className="min-h-full flex flex-col">
+      <PHProvider>
+        <body className="min-h-full flex flex-col">
+          <Suspense fallback={null}>
+            <PostHogPageView />
+          </Suspense>
 
-        <Navbar />
+          <Navbar />
 
-        <div className="absolute inset-0 top-0 z-[-1] min-h-screen">
-          <LightRays
-            raysOrigin="top-center-offset"
-            raysColor="#5dfeca"
-            raysSpeed={0.5}
-            lightSpread={0.9}
-            rayLength={1.5}
-            followMouse={true}
-            mouseInfluence={0.01}
-            noiseAmount={0}
-            distortion={0}
-            className="custom-rays"
-            pulsating={false}
-            fadeDistance={1}
-            saturation={1}
-        />
-        </div>
+          <div className="absolute inset-0 top-0 z-[-1] min-h-screen">
+            <LightRays
+              raysOrigin="top-center-offset"
+              raysColor="#5dfeca"
+              raysSpeed={0.5}
+              lightSpread={0.9}
+              rayLength={1.5}
+              followMouse={true}
+              mouseInfluence={0.01}
+              noiseAmount={0}
+              distortion={0}
+              className="custom-rays"
+              pulsating={false}
+              fadeDistance={1}
+              saturation={1}
+            />
+          </div>
 
-        <main>
-          {children}
-        </main>
-      </body>
+          <main>
+            {children}
+          </main>
+        </body>
+      </PHProvider>
     </html>
   );
 }
