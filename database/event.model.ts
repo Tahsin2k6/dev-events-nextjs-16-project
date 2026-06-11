@@ -58,6 +58,11 @@ const normalizeTime = (value: string): string => {
   const minute = parseInt(m[2], 10);
   const meridiem = m[4] ? m[4].toLowerCase() : undefined;
 
+  // In 12-hour format, valid hours are 1–12. "13:00 pm" must be rejected.
+  if (meridiem && (hour < 1 || hour > 12)) {
+    throw new Error("Hour must be between 1 and 12 when using am/pm");
+  }
+
   if (meridiem) {
     if (meridiem === "pm" && hour < 12) hour += 12;
     if (meridiem === "am" && hour === 12) hour = 0;
@@ -128,11 +133,11 @@ type UpdateDoc = {
 };
 
 /**
- * Pre-save hook:
- * - Generates/regenerates slug from title with collision handling (appends -1, -2, etc.)
- * - Normalizes date to YYYY-MM-DD and time to HH:mm, only when those fields are modified
+ * Pre-validate hook: generates slug BEFORE Mongoose runs validation.
+ * Must live here — not in pre('save') — because slug is required:true and
+ * Mongoose runs validation before pre('save'), which would fail on every new document.
  */
-EventSchema.pre<EventDocument>("save", async function () {
+EventSchema.pre<EventDocument>("validate", async function () {
   if (this.isModified("title") || !this.slug) {
     const base = slugify(this.title);
     let slug = base;
@@ -144,7 +149,13 @@ EventSchema.pre<EventDocument>("save", async function () {
     }
     this.slug = slug;
   }
+});
 
+/**
+ * Pre-save hook: normalizes date to YYYY-MM-DD and time to HH:mm,
+ * only when those fields are modified.
+ */
+EventSchema.pre<EventDocument>("save", async function () {
   if (this.isModified("date")) this.date = normalizeDate(this.date);
   if (this.isModified("time")) this.time = normalizeTime(this.time);
 });
@@ -185,9 +196,23 @@ EventSchema.pre("findOneAndUpdate", async function () {
     const base = slugify(title);
     let slug = base;
     let i = 1;
-    const docId = this.getQuery()._id;
 
-    while (await EventModel.exists({ slug, _id: { $ne: docId } })) {
+    // this.getQuery()._id is undefined when the filter doesn't use _id
+    // (e.g. findOneAndUpdate({ slug: 'old-slug' }, ...)). Without this fallback,
+    // the collision filter passes { $ne: undefined }, which matches every document
+    // including the one being updated — causing an infinite suffix loop.
+    const query = this.getQuery();
+    let docId = query._id;
+    if (!docId) {
+      const existing = await EventModel.findOne(query, { _id: 1 }).lean();
+      docId = existing?._id;
+    }
+
+    const collisionFilter = docId
+      ? { slug, _id: { $ne: docId } }
+      : { slug };
+
+    while (await EventModel.exists(collisionFilter)) {
       slug = `${base}-${i++}`;
     }
     setField("slug", slug);
