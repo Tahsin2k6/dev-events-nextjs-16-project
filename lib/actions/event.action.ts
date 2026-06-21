@@ -3,15 +3,22 @@
 import { Event } from "@/database";
 import connectDB from "../mongodb";
 
-export const getSimilarEventsBySlug = async (slug: string) => {
-    try{
+export const getEventBySlug = async (slug: string) => {
+    try {
         await connectDB();
-
-        const event = await Event.findOne({ slug });
-
-        return await Event.find({ _id: { $ne: event._id }, tags: { $in: event.tags } }).lean()
+        return await Event.findOne({ slug }).lean();
+    } catch (err) {
+        console.error('getEventBySlug failed:', err);
+        return null;
     }
-    catch{
+}
+
+export const getSimilarEvents = async (excludeId: string, tags: string[]) => {
+    try {
+        await connectDB();
+        return await Event.find({ _id: { $ne: excludeId }, tags: { $in: tags } }).lean();
+    } catch (err) {
+        console.error('getSimilarEvents failed:', err);
         return [];
     }
 }
