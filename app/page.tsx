@@ -1,33 +1,24 @@
+import { Suspense } from "react";
 import ExploreBtn from "@/components/ExploreBtn";
-import EventCard from "@/components/EventCard";
-import { IEvent } from '@/database/event.model'
+import FeaturedEvents from "@/components/FeaturedEvents";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
-
-const page = async() => {
-  const response = await fetch(`${BASE_URL}/api/events`);
-  const { events } = await response.json();
-
+const Page = () => {
   return (
     <section>
       <h1 className="text-center">The Hub For Every Dev <br /> Event You Can&apos;t Miss</h1>
 
       <p className="text-center mt-5">Hackathons, Meetups and Conferences, All In One Place</p>
-      <ExploreBtn/>
+      <ExploreBtn />
 
       <div className="mt-20 space-y-7">
         <h3>Featured Events</h3>
 
-        <ul className="events">
-          {events && events.length >0 && events.map((event: IEvent) => (
-            <li key={event.title} className="list-none" >
-              <EventCard {...event} />
-            </li>
-          ))}
-        </ul>
+        <Suspense fallback={<p>Loading events...</p>}>
+          <FeaturedEvents />
+        </Suspense>
       </div>
     </section>
-  )
-}
+  );
+};
 
-export default page
+export default Page;

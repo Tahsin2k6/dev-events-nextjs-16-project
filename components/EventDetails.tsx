@@ -31,7 +31,9 @@ const EventAgenda = ({ agendaItems }: { agendaItems: string[] }) => (
     </div>
 );
 
-const EventDetails = async ({ slug }: { slug: string }) => {
+const EventDetails = async ({ params }: { params: Promise<{ slug: string }> }) => {
+    const { slug } = await params;
+
     const event = await getEventBySlug(slug);
     if (!event) return notFound();
 

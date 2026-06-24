@@ -22,3 +22,13 @@ export const getSimilarEvents = async (excludeId: string, tags: string[]) => {
         return [];
     }
 }
+
+export const getAllEvents = async () => {
+    try {
+        await connectDB();
+        return await Event.find().sort({ createdAt: -1 }).lean();
+    } catch (err) {
+        console.error('getAllEvents failed:', err);
+        return [];
+    }
+}
